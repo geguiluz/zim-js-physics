@@ -11,9 +11,40 @@ class HandController {
 		// Converting tetha from radians to degrees
 		this.rollAngle = theta * 180 / Math.PI;
 	}
-	updateCoordinates(x,y){
-		this.x = x;
-		this.y = y;
+	updateCoordinates(x, y){
+		this.x = this.restrictMotion(this.x, x, 1)
+		this.y = this.restrictMotion(this.y, y, 1)
+		
+		// this.x = Math.floor(x);
+		// this.y = Math.floor(y);
+	}
+	calculateMotion(oldValue, newValue, interval = 1) {
+		oldValue = Math.floor(oldValue);
+		newValue = Math.floor(newValue);
+		var delta = Math.abs(oldValue - newValue)
+		if (oldValue < newValue) {
+			for (i = oldValue; i < delta; i++){
+				// Value is increasing: increment newValue by the interval until it matches the destination newValue
+				newValue += interval;
+				// draw();
+			}
+		} else if (oldValue > newValue) {
+			for (i = oldValue; i < delta; i++){
+				// Value is increasing: increment newValue by the interval until it matches the destination newValue
+				newValue -= interval;
+				// draw();
+			}
+		} 
+	}
+	restrictMotion(oldValue, newValue, interval = 1) {
+		oldValue = Math.floor(oldValue);
+		newValue = Math.floor(newValue);
+		var delta = Math.abs(oldValue - newValue)
+		if (delta >= interval){
+			return newValue;
+		} else {
+			return oldValue;
+		} 
 	}
 }
 
@@ -162,10 +193,10 @@ frame.on("ready", function() {
 	// 7. set optional debug canvas showing Box2D shapes
 	// DEBUG
 	// optionally see the BOX 2D debug canvas - uncomment below
-	physics.debug();
-	frame.on("resize", function() {
-		physics.updateDebug();
-	});
+	// physics.debug();
+	// frame.on("resize", function() {
+	// 	physics.updateDebug();
+	// });
 
 	// 8. create ZIM assets to match physics world
 	// Box2D bodies (made by physics.js) have centered positions
@@ -215,53 +246,59 @@ frame.on("ready", function() {
 
     // ZIM BITS footer - you will not need this
     // makeFooter(stage, stageW, stageH); 
-    
-    // LEAP MOTION HAND CONTROLLER
 
-    // Loop uses browser's requestanimationFrame
-    var options = { enableGestures: true };
+	// LEAP MOTION HAND CONTROLLER
 
-    // Main Loop Loop
-    Leap.loop(options, function(frameLeap) {
+	// Loop uses browser's requestanimationFrame
+	var options = { enableGestures: true };
+	// Main Loop Loop
+	Leap.loop(options, function(frame) {
 		var motionScaleRate = 2.5;
-        if (frameLeap.hands.length > 0){
-            // console.log('Mano detectada');
-            // Leyendo la posición X y Y del dedo ìndice de la primera mano detectada
-            var indexFingerX = frameLeap.hands[0].fingers[1].dipPosition[0];
-            var indexFingerY = frameLeap.hands[0].fingers[1].dipPosition[1];
+		if (frame.hands.length > 0){
+			// console.log('Mano detectada');
+			// Leyendo la posición X y Y del dedo ìndice de la primera mano detectada
+			var indexFingerX = frame.hands[0].fingers[1].dipPosition[0];
+			var indexFingerY = frame.hands[0].fingers[1].dipPosition[1];
 			// console.log('Coordenada X', handX, 'Coordenada Y', handY);
-			var pinkyFingerX = frameLeap.hands[0].fingers[4].dipPosition[0];
-            var pinkyFingerY = frameLeap.hands[0].fingers[4].dipPosition[1];
+			var pinkyFingerX = frame.hands[0].fingers[4].dipPosition[0];
+			var pinkyFingerY = frame.hands[0].fingers[4].dipPosition[1];
 			
 			// Calculate the slope using two points as a reference
 			paddleControl.updateRollAngle(indexFingerX,indexFingerY, pinkyFingerX, pinkyFingerY);
 
-			paddleControl.X = indexFingerX * motionScaleRate + (width / 2);
-			paddleControl.y = (height - indexFingerY * motionScaleRate);
-
+			var paddleX = indexFingerX * motionScaleRate + (width / 2);
+			var paddleY = (height * 1.2 - indexFingerY * motionScaleRate);
+			paddleControl.updateCoordinates(paddleX, paddleY);
+			
 			// Read the actual X and Y of the index finger and assign it to the X and X of the paddle 
 			// I suspect this was causing problems with the collisions, since it's skipping the pixels where the collisions must take place at
-            // paddleBody.y = handYOnCanvas;
+			// paddleBody.y = handYOnCanvas;
 			// paddleBody.x = handXOnCanvas;
-			paddleBody.x = paddleControl.X;
+			paddleBody.x = paddleControl.x;
 			paddleBody.y = paddleControl.y;
 			paddleBody.rotation = paddleControl.rollAngle;
 			
-			console.log('X:',paddleBody.x, 'Y:', paddleBody.y)
+			console.log('X:', paddleBody.x, 'Y:', paddleBody.y)
 			// paddleBody.rotation = 0;
-        }
+		}
+	}); // end of Leap loop
 
-    });
-
+	window.addEventListener('keydown', e => {
+		if(e.keyCode === 38) {
+			// Up Arrow
+			paddleBody.y -= 50;
+		}
+		if(e.keyCode === 40) {
+			// Down Arrow
+			paddleBody.y += 50;
+		}
+		if(e.keyCode === 37) {
+			// Left Arrow
+			paddleBody.x -= 50;
+		}
+		if(e.keyCode === 39) {
+			// Right Arrow
+			paddleBody.x += 50;
+		}
+	});
 }); // end of ready
-
-function calculateMotion(oldValue, newValue, interval = 1) {
-	var delta = Math.abs(oldValue - newValue)
-	if (oldValue < newValue) {
-		// Value is increasing: increment newValue by the interval until it matches the destination newValue
-		newValue += interval;
-	} else if (oldValue > newValue) {
-		// Value is increasing: increment newValue by the interval until it matches the destination newValue
-		newValue += interval;
-	}
-}
