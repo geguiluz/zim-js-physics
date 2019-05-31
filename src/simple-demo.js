@@ -1,3 +1,22 @@
+class HandController {
+	constructor(x, y){
+		this.x = x;
+		this.y = y;
+		this.rollAngle = 0;
+	}
+	updateRollAngle(x1, y1, x2, y2){
+		// Calculate the slope using two points as a reference
+		var slope =  (y1 - y2) / (x1 -x2);
+		var theta = Math.atan(slope) * -1;
+		// Converting tetha from radians to degrees
+		this.rollAngle = theta * 180 / Math.PI;
+	}
+	updateCoordinates(x,y){
+		this.x = x;
+		this.y = y;
+	}
+}
+
 // SCALING OPTIONS
 // scaling can have values as follows with full being the default
 // "fit"	sets canvas and stage to dimensions and scales to fit inside window size
@@ -10,6 +29,7 @@ var width = 1000;
 var height = 800;
 var color = dark; // or any HTML color such as "violet" or "#333333"
 var outerColor = light;
+var paddleControl = new HandController(300,300);
 
 var frame = new Frame(scaling, width, height, color, outerColor);
 frame.on("ready", function() {
@@ -86,12 +106,12 @@ frame.on("ready", function() {
 	// dynamic defaults to true and means the body will move
 	// here we set the bar to not be dynamic so it is fixed
 	// width, height, dynamic, friction, angular, density, restitution, maskBits, categoryBits
-	var barBody = physics.makeRectangle(barW, barH, true, .2,'',100000);
+	var paddleBody = physics.makeRectangle(barW, barH, true, .2,'',100000);
 
 	// 5. position and rotate the bodies (only at start)
-	barBody.x = 300;
-	barBody.y = 300;
-	barBody.rotation = 30;
+	paddleBody.x = 300;
+	paddleBody.y = 300;
+	// paddleBody.rotation = 30;
 
 	// CIRCLE
 	// 4. create Box2D body assets specifying dynamic and other properties
@@ -102,7 +122,7 @@ frame.on("ready", function() {
 	var circleBody = physics.makeCircle({
 		radius:circleR,
 		angular:.75,
-		restitution:.2,
+		restitution:1,
 		density: 100000
 	});
 
@@ -137,7 +157,7 @@ frame.on("ready", function() {
 	// optionally pass in a list of bodies to receive mouse movement
 	// otherwise defaults to all moveable bodies
 	// physics.drag([boxBody, triangleBody]); // would not drag circleBody
-	physics.drag();
+	physics.drag(paddleBody, circleBody);
 
 	// 7. set optional debug canvas showing Box2D shapes
 	// DEBUG
@@ -174,7 +194,7 @@ frame.on("ready", function() {
 	// 9. map the ZIM assets to the Box2D assets
 	// this puts the ZIM assets on the Box2D assets
 	// and rotates them to the same rotation
-	physics.addMap(barBody, bar);
+	physics.addMap(paddleBody, bar);
 	physics.addMap(circleBody, circle);
 	// physics.addMap(triBody, tri);
 	// physics.addMap(boxBody, box);
@@ -212,18 +232,36 @@ frame.on("ready", function() {
 			// console.log('Coordenada X', handX, 'Coordenada Y', handY);
 			var pinkyFingerX = frameLeap.hands[0].fingers[4].dipPosition[0];
             var pinkyFingerY = frameLeap.hands[0].fingers[4].dipPosition[1];
-			// We need an if statement in order to determine if we're reading either the right or the left hand
-			// Let's just assume it's always the right hand for now 
-			var slope = (indexFingerY - pinkyFingerY) / (indexFingerX - pinkyFingerX);
-			var theta = Math.atan(slope) * -1;
-			// Converting radians to degrees
-			theta *= 180 / Math.PI;
-            barBody.y = (height - indexFingerY * motionScaleRate);
-			barBody.x = indexFingerX * motionScaleRate + (width / 2);
-			console.log('X:',barBody.x, 'Y:', barBody.y)
-			barBody.rotation = theta;
+			
+			// Calculate the slope using two points as a reference
+			paddleControl.updateRollAngle(indexFingerX,indexFingerY, pinkyFingerX, pinkyFingerY);
+
+			paddleControl.X = indexFingerX * motionScaleRate + (width / 2);
+			paddleControl.y = (height - indexFingerY * motionScaleRate);
+
+			// Read the actual X and Y of the index finger and assign it to the X and X of the paddle 
+			// I suspect this was causing problems with the collisions, since it's skipping the pixels where the collisions must take place at
+            // paddleBody.y = handYOnCanvas;
+			// paddleBody.x = handXOnCanvas;
+			paddleBody.x = paddleControl.X;
+			paddleBody.y = paddleControl.y;
+			paddleBody.rotation = paddleControl.rollAngle;
+			
+			console.log('X:',paddleBody.x, 'Y:', paddleBody.y)
+			// paddleBody.rotation = 0;
         }
 
     });
 
 }); // end of ready
+
+function calculateMotion(oldValue, newValue, interval = 1) {
+	var delta = Math.abs(oldValue - newValue)
+	if (oldValue < newValue) {
+		// Value is increasing: increment newValue by the interval until it matches the destination newValue
+		newValue += interval;
+	} else if (oldValue > newValue) {
+		// Value is increasing: increment newValue by the interval until it matches the destination newValue
+		newValue += interval;
+	}
+}
