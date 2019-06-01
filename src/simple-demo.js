@@ -4,41 +4,36 @@ class HandController {
 		this.y = y;
 		this.rollAngle = 0;
 	}
-	updateRollAngle(x1, y1, x2, y2){
+	updateRollAngle(x1, y1, x2, y2, body){
 		// Calculate the slope using two points as a reference
 		var slope =  (y1 - y2) / (x1 -x2);
 		var theta = Math.atan(slope) * -1;
 		// Converting tetha from radians to degrees
-		this.rollAngle = theta * 180 / Math.PI;
+		var newAngle = theta * 180 / Math.PI;
+		this.rollAngle = body.rotation = this.restrictMotion(body.rotation, newAngle, 1)
+		body.SetAwake(true);
 	}
-	updateCoordinates(x, y){
-		this.x = this.restrictMotion(this.x, x, 1)
-		this.y = this.restrictMotion(this.y, y, 1)
-		
-		// this.x = Math.floor(x);
-		// this.y = Math.floor(y);
+	updateCoordinates(x, y, body){
+		this.x = x;
+		this.y = y;
+		this.x = body.x = this.restrictMotion(body.x, this.x, 1)
+		this.y = body.y = this.restrictMotion(body.y, this.y, 1)
+		body.SetAwake(true);
 	}
-	calculateMotion(oldValue, newValue, interval = 1) {
-		oldValue = Math.floor(oldValue);
-		newValue = Math.floor(newValue);
-		var delta = Math.abs(oldValue - newValue)
-		if (oldValue < newValue) {
-			for (i = oldValue; i < delta; i++){
-				// Value is increasing: increment newValue by the interval until it matches the destination newValue
-				newValue += interval;
-				// draw();
-			}
-		} else if (oldValue > newValue) {
-			for (i = oldValue; i < delta; i++){
-				// Value is increasing: increment newValue by the interval until it matches the destination newValue
-				newValue -= interval;
-				// draw();
-			}
-		} 
-	}
+	// calculateMotion(oldValue, newValue, interval = 1) {
+	// 	oldValue = Number.parseInt(Math.floor(oldValue));
+	// 	newValue = Number.parseInt(Math.floor(newValue));
+	// 	var delta = Math.abs(oldValue - newValue)
+	// 	// delta > 5 ? delta = 5 : delta = delta;
+	// 	if (oldValue < newValue) {
+	// 			newValue += interval;
+	// 	} else if (oldValue > newValue) {
+	// 			newValue -= interval;
+	// 	} 
+	// }
 	restrictMotion(oldValue, newValue, interval = 1) {
-		oldValue = Math.floor(oldValue);
-		newValue = Math.floor(newValue);
+		oldValue = Number.parseInt(Math.floor(oldValue));
+		newValue = Number.parseInt(Math.floor(newValue));
 		var delta = Math.abs(oldValue - newValue)
 		if (delta >= interval){
 			return newValue;
@@ -61,6 +56,7 @@ var height = 800;
 var color = dark; // or any HTML color such as "violet" or "#333333"
 var outerColor = light;
 var paddleControl = new HandController(300,300);
+var debug2D = true;
 
 var frame = new Frame(scaling, width, height, color, outerColor);
 frame.on("ready", function() {
@@ -124,8 +120,8 @@ frame.on("ready", function() {
 	// here we specify width, height, radius
 	// so we can use both for Box2D shapes and ZIM shapes
 	var barW = 400;
-	var barH = 20;
-	var circleR = 30;
+	var barH = 100;
+	var circleR = 50;
 	var boxW = 150;
 	var boxH = 150;
 	var tri1 = 200;
@@ -137,7 +133,7 @@ frame.on("ready", function() {
 	// dynamic defaults to true and means the body will move
 	// here we set the bar to not be dynamic so it is fixed
 	// width, height, dynamic, friction, angular, density, restitution, maskBits, categoryBits
-	var paddleBody = physics.makeRectangle(barW, barH, true, .2,'',100000);
+	var paddleBody = physics.makeRectangle(barW, barH, 'kinematic', .2,'',100000);
 
 	// 5. position and rotate the bodies (only at start)
 	paddleBody.x = 300;
@@ -188,15 +184,17 @@ frame.on("ready", function() {
 	// optionally pass in a list of bodies to receive mouse movement
 	// otherwise defaults to all moveable bodies
 	// physics.drag([boxBody, triangleBody]); // would not drag circleBody
-	physics.drag(paddleBody, circleBody);
+	physics.drag([paddleBody, circleBody]);
 
 	// 7. set optional debug canvas showing Box2D shapes
 	// DEBUG
 	// optionally see the BOX 2D debug canvas - uncomment below
-	// physics.debug();
-	// frame.on("resize", function() {
-	// 	physics.updateDebug();
-	// });
+	if (debug2D = true){
+		physics.debug();
+		frame.on("resize", function() {
+			physics.updateDebug();
+		});
+	}
 
 	// 8. create ZIM assets to match physics world
 	// Box2D bodies (made by physics.js) have centered positions
@@ -208,10 +206,10 @@ frame.on("ready", function() {
 	var circle = new Circle(circleR, frame.pink)
 		.center();
 	circle.cursor = "pointer";
-		// add a little inner circle to see it spin
-		var inner = new Circle(circleR/2, frame.green);
-		inner.x = circleR/4;
-		circle.addChild(inner);
+		// // add a little inner circle to see it spin
+		// var inner = new Circle(circleR/2, frame.green);
+		// inner.x = circleR/4;
+		// circle.addChild(inner);
 
 	// var tri = new Triangle(tri1, tri2, tri3, frame.yellow)
 	// 	.centerReg();
@@ -263,22 +261,23 @@ frame.on("ready", function() {
 			var pinkyFingerX = frame.hands[0].fingers[4].dipPosition[0];
 			var pinkyFingerY = frame.hands[0].fingers[4].dipPosition[1];
 			
-			// Calculate the slope using two points as a reference
-			paddleControl.updateRollAngle(indexFingerX,indexFingerY, pinkyFingerX, pinkyFingerY);
-
 			var paddleX = indexFingerX * motionScaleRate + (width / 2);
 			var paddleY = (height * 1.2 - indexFingerY * motionScaleRate);
-			paddleControl.updateCoordinates(paddleX, paddleY);
+			
+			paddleControl.updateRollAngle(indexFingerX,indexFingerY, pinkyFingerX, pinkyFingerY, paddleBody);
+			paddleControl.updateCoordinates(paddleX, paddleY, paddleBody);
 			
 			// Read the actual X and Y of the index finger and assign it to the X and X of the paddle 
 			// I suspect this was causing problems with the collisions, since it's skipping the pixels where the collisions must take place at
 			// paddleBody.y = handYOnCanvas;
 			// paddleBody.x = handXOnCanvas;
-			paddleBody.x = paddleControl.x;
-			paddleBody.y = paddleControl.y;
-			paddleBody.rotation = paddleControl.rollAngle;
+			// paddleBody.x = paddleControl.x;
+			// paddleBody.y = paddleControl.y;
+			// paddleBody.rotation = paddleControl.rollAngle;
 			
-			console.log('X:', paddleBody.x, 'Y:', paddleBody.y)
+			console.log('X:', paddleBody.x, 'Y:', paddleBody.y);
+			console.log('X:', paddleControl.x, 'Y:', paddleControl.y);
+			
 			// paddleBody.rotation = 0;
 		}
 	}); // end of Leap loop
@@ -286,19 +285,29 @@ frame.on("ready", function() {
 	window.addEventListener('keydown', e => {
 		if(e.keyCode === 38) {
 			// Up Arrow
-			paddleBody.y -= 50;
+			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y - 1, paddleBody);
 		}
 		if(e.keyCode === 40) {
 			// Down Arrow
-			paddleBody.y += 50;
+			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y + 1, paddleBody);
 		}
 		if(e.keyCode === 37) {
 			// Left Arrow
-			paddleBody.x -= 50;
+			paddleControl.updateCoordinates(paddleBody.x - 1, paddleBody.y, paddleBody);
 		}
 		if(e.keyCode === 39) {
 			// Right Arrow
-			paddleBody.x += 50;
+			paddleControl.updateCoordinates(paddleBody.x + 1, paddleBody.y, paddleBody);
 		}
 	});
+	function moveBodyByHand(hndCtrl, body){
+		var md = new b2MouseJointDef();
+		md.bodyA = world.GetGroundBody();
+		md.bodyB = body;
+		md.target.Set(hndCtrl.x, hndCtrl);
+		md.collideConnected = true;
+		md.maxForce = 300.0 * body.GetMass();
+		var mouseJoint = world.CreateJoint(md);
+		body.SetAwake(true);
+	}
 }); // end of ready
