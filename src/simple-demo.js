@@ -10,14 +10,16 @@ class HandController {
 		var theta = Math.atan(slope) * -1;
 		// Converting tetha from radians to degrees
 		var newAngle = theta * 180 / Math.PI;
-		this.rollAngle = body.rotation = this.restrictMotion(body.rotation, newAngle, 1)
+		this.rollAngle = body.rotation = this.restrictMotion(body.rotation, newAngle, 1);
+		// Set body awaye as an attempt to prevernt tunneling. Didn't do much
 		body.SetAwake(true);
 	}
 	updateCoordinates(x, y, body){
 		this.x = x;
 		this.y = y;
-		this.x = body.x = this.restrictMotion(body.x, this.x, 1)
-		this.y = body.y = this.restrictMotion(body.y, this.y, 1)
+		this.x = body.x = this.restrictMotion(body.x, this.x, 1);
+		this.y = body.y = this.restrictMotion(body.y, this.y, 1);
+		// Set body awaye as an attempt to prevernt tunneling. Didn't do much
 		body.SetAwake(true);
 	}
 	// calculateMotion(oldValue, newValue, interval = 1) {
@@ -34,7 +36,8 @@ class HandController {
 	restrictMotion(oldValue, newValue, interval = 1) {
 		oldValue = Number.parseInt(Math.floor(oldValue));
 		newValue = Number.parseInt(Math.floor(newValue));
-		var delta = Math.abs(oldValue - newValue)
+		var delta = Math.abs(oldValue - newValue);
+		// delta < 10 ? delta = delta : delta = 10;
 		if (delta >= interval){
 			return newValue;
 		} else {
@@ -51,12 +54,12 @@ class HandController {
 // "tagID"	add canvas to HTML tag of ID - set to dimensions if provided - no scaling
 
 var scaling = "fit"; // this will resize to fit inside the screen dimensions
-var width = 1000;
+var width = 1200;
 var height = 800;
 var color = dark; // or any HTML color such as "violet" or "#333333"
 var outerColor = light;
 var paddleControl = new HandController(300,300);
-var debug2D = true;
+var debug2D = false;
 
 var frame = new Frame(scaling, width, height, color, outerColor);
 frame.on("ready", function() {
@@ -111,6 +114,8 @@ frame.on("ready", function() {
 	// and scale that is used
 	// var world = physics.world;
 	// var scale = physics.scale;
+	physics.scale = 200;
+	var diffFactor = 1;
 
 	// 3. alternatively remove any of the borders
 	// also borderTop, borderLeft, borderRight
@@ -119,21 +124,37 @@ frame.on("ready", function() {
 	// INITIAL VARS
 	// here we specify width, height, radius
 	// so we can use both for Box2D shapes and ZIM shapes
-	var barW = 400;
-	var barH = 100;
-	var circleR = 50;
-	var boxW = 150;
-	var boxH = 150;
-	var tri1 = 200;
-	var tri2 = 150;
-	var tri3 = 132;
+
+	// // Descomentar para hacerlo funcionar como StarWars
+	// var barW = 400;
+	// var barH = 10;
+	// var circleR = 15;
+	// var boxW = 30;
+	// var boxH = 30;
+
+	var barW = 600;
+	var barH = 70;
+	var circleR = 40;
+	var boxW = 80;
+	var boxH = 80;
+
+	// var tri1 = 80;
+	// var tri2 = 80;
+	// var tri3 = 80;
 
 	// ANGLED BAR
 	// 4. create Box2D body assets specifying dynamic and other properties
 	// dynamic defaults to true and means the body will move
 	// here we set the bar to not be dynamic so it is fixed
 	// width, height, dynamic, friction, angular, density, restitution, maskBits, categoryBits
-	var paddleBody = physics.makeRectangle(barW, barH, 'kinematic', .2,'',100000);
+	var paddleBody = physics.makeRectangle({
+		width: barW,
+		height: barH, 
+		dynamic: 'kinematic', 
+		friction: 0,
+		density: 1,
+		bullet: true
+	});
 
 	// 5. position and rotate the bodies (only at start)
 	paddleBody.x = 300;
@@ -147,36 +168,56 @@ frame.on("ready", function() {
 	// restitution is how bouncy with 0 being not bouncy and 1 being fully bouncy
 	// radius, dynamic, friction, angular, density, restitution, maskBits, categoryBits
 	var circleBody = physics.makeCircle({
-		radius:circleR,
-		angular:.75,
-		restitution:1,
-		density: 100000
+		radius: circleR,
+		angular: .75,
+		restitution: .6 * diffFactor,
+		density: 1,
+		dynamic: true,
+		friction: .7 / diffFactor,
+		bullet: true
 	});
 
 	// 5. position and rotate the bodies (only at start)
 	circleBody.x = 400;
-	circleBody.y = 200;
+	circleBody.y = 40;
 
 	// BOX
 	// 4. create Box2D body assets specifying dynamic and other properties
 	// friction means how much the body will slow down sliding
 	// with 0 meaning very little slowdown and 1 being lots of slowdown (Sticky)
 	// width, height, dynamic, friction, angular, density, restitution, maskBits, categoryBits
-	// var boxBody = physics.makeRectangle(boxW, boxH, true, .2);
+	var boxBody = physics.makeRectangle({
+		width: boxW,
+		height: boxH, 
+		restitution: .6 * diffFactor,
+		density: 1,
+		dynamic: true,
+		friction: .7 / diffFactor,
+		bullet: true
+	});
 
 	// 5. position and rotate the bodies (only at start)
-	// boxBody.x = 200;
-	// boxBody.y = 40;
+	boxBody.x = 200;
+	boxBody.y = 40;
 
 	// TRIANGLE
 	// 4. create Box2D body assets specifying dynamic and other properties
 	// triangles match the ZIM triangle with the length of three sides
 	// unlike the ZIM triangle, all sides must be specified
 	// a, b, c, dynamic, friction, angular, density, restitution, maskBits, categoryBits
-	// var triBody = physics.makeTriangle(tri1, tri2, tri3, true, .2);
+	// var triBody = physics.makeTriangle({
+	// 	a: tri1, 
+	// 	b: tri2, 
+	// 	c: tri3, 
+	// 	restitution:1,
+	// 	density: 1,
+	// 	dynamic: true,
+	// 	friction: .2,
+	// 	bullet: true
+	// });
 
 	// 5. position and rotate the bodies (only at start)
-	// triBody.x = 616;
+	// triBody.x = 516;
 	// triBody.y = 100;
 
 	// MOUSE
@@ -184,12 +225,12 @@ frame.on("ready", function() {
 	// optionally pass in a list of bodies to receive mouse movement
 	// otherwise defaults to all moveable bodies
 	// physics.drag([boxBody, triangleBody]); // would not drag circleBody
-	physics.drag([paddleBody, circleBody]);
+	physics.drag();
 
 	// 7. set optional debug canvas showing Box2D shapes
 	// DEBUG
 	// optionally see the BOX 2D debug canvas - uncomment below
-	if (debug2D = true){
+	if (debug2D === true){
 		physics.debug();
 		frame.on("resize", function() {
 			physics.updateDebug();
@@ -215,9 +256,9 @@ frame.on("ready", function() {
 	// 	.centerReg();
 	// tri.cursor = "pointer";
 
-	// var box = new Rectangle(boxW, boxH, frame.orange)
-	// 	.centerReg();
-	// box.cursor = "pointer";
+	var box = new Rectangle(boxW, boxH, frame.orange)
+		.centerReg();
+	box.cursor = "pointer";
 
 	// MAPPING
 	// 9. map the ZIM assets to the Box2D assets
@@ -226,7 +267,7 @@ frame.on("ready", function() {
 	physics.addMap(paddleBody, bar);
 	physics.addMap(circleBody, circle);
 	// physics.addMap(triBody, tri);
-	// physics.addMap(boxBody, box);
+	physics.addMap(boxBody, box);
 
 	// you can also remove maps and shapes:
 	// physics.removeMap(circleBody);
@@ -251,7 +292,7 @@ frame.on("ready", function() {
 	var options = { enableGestures: true };
 	// Main Loop Loop
 	Leap.loop(options, function(frame) {
-		var motionScaleRate = 2.5;
+		var motionScaleRate = 2;
 		if (frame.hands.length > 0){
 			// console.log('Mano detectada');
 			// Leyendo la posición X y Y del dedo ìndice de la primera mano detectada
@@ -261,7 +302,8 @@ frame.on("ready", function() {
 			var pinkyFingerX = frame.hands[0].fingers[4].dipPosition[0];
 			var pinkyFingerY = frame.hands[0].fingers[4].dipPosition[1];
 			
-			var paddleX = indexFingerX * motionScaleRate + (width / 2);
+			// var paddleX = indexFingerX * motionScaleRate + (width / (motionScaleRate+1));
+			var paddleX = indexFingerX * motionScaleRate + width / 2;
 			var paddleY = (height * 1.2 - indexFingerY * motionScaleRate);
 			
 			paddleControl.updateRollAngle(indexFingerX,indexFingerY, pinkyFingerX, pinkyFingerY, paddleBody);
@@ -283,21 +325,22 @@ frame.on("ready", function() {
 	}); // end of Leap loop
 
 	window.addEventListener('keydown', e => {
+		var inc = 50;
 		if(e.keyCode === 38) {
 			// Up Arrow
-			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y - 1, paddleBody);
+			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y - inc, paddleBody);
 		}
 		if(e.keyCode === 40) {
 			// Down Arrow
-			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y + 1, paddleBody);
+			paddleControl.updateCoordinates(paddleBody.x, paddleBody.y + inc, paddleBody);
 		}
 		if(e.keyCode === 37) {
 			// Left Arrow
-			paddleControl.updateCoordinates(paddleBody.x - 1, paddleBody.y, paddleBody);
+			paddleControl.updateCoordinates(paddleBody.x - inc, paddleBody.y, paddleBody);
 		}
 		if(e.keyCode === 39) {
 			// Right Arrow
-			paddleControl.updateCoordinates(paddleBody.x + 1, paddleBody.y, paddleBody);
+			paddleControl.updateCoordinates(paddleBody.x + inc, paddleBody.y, paddleBody);
 		}
 	});
 	function moveBodyByHand(hndCtrl, body){
@@ -310,4 +353,6 @@ frame.on("ready", function() {
 		var mouseJoint = world.CreateJoint(md);
 		body.SetAwake(true);
 	}
+
+		
 }); // end of ready
